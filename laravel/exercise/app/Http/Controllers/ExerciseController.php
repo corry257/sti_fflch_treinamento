@@ -9,14 +9,11 @@ class ExerciseController extends Controller
 {
     public function importCsv()
     {
-        // Configura o leitor de CSV
         $csv = Reader::createFromPath(storage_path('app/exercise.csv'), 'r');
-        $csv->setHeaderOffset(0); // Ignora o cabeçalho
+        $csv->setHeaderOffset(0); 
         
-        // Limpa a tabela antes de importar
         Exercise::truncate();
         
-        // Importa cada linha
         foreach ($csv as $linha) {
             $exercicio = new Exercise();
             $exercicio->diet = $linha['diet'];
@@ -31,7 +28,6 @@ class ExerciseController extends Controller
 
     public function stats()
     {
-        // Calculo das estatísticas 
         $estatistica = [
             'rest' => [
                 'quantidade' => Exercise::where('kind', 'rest')->count(),
