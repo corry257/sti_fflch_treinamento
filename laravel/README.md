@@ -186,30 +186,13 @@ Exemplo de saída:
 
         php artisan make:model Exercise -m
 
-   Edite o model Exercise.php:
 
-       protected $fillable = [
-        'csv_id',
-        'diet',
-        'pulse',
-        'time',
-        'kind'
-       ];
+   Edite a migration em (database/migrations/xxxx_create_exercises_table.php):
 
-   Edite a migration (database/migrations/xxxx_create_exercises_table.php):
-
-       public function up()
-       {
-           Schema::create('exercises', function (Blueprint $table) {
-               $table->id(); // 1. Chave primária auto-incremento
-               $table->integer('csv_id')->nullable(); // 2. ID original do CSV
-               $table->string('diet'); // 3. Tipo de dieta (ex: 'low fat')
-               $table->integer('pulse'); // 4. Valor numérico do pulso
-               $table->string('time'); // 5. Tempo do exercício (ex: '1 min')
-               $table->string('kind'); // 6. Tipo de exercício (rest/walking/running)
-               $table->timestamps(); // 7. Created_at e updated_at automáticos
-           });
-       }
+       $table->string('diet');
+       $table->integer('pulse');
+       $table->string('time');
+       $table->string('kind');
 
     Execute a migration:
 
@@ -217,116 +200,71 @@ Exemplo de saída:
 
 5. Criar o Controller
 
-    Crie o controller:
+    Crie o controller com o nome de ExerciseController:
 
        php artisan make:controller ExerciseController
 
-    Edite o controller (app/Http/Controllers/ExerciseController.php):
+    Edite o controller em (app/Http/Controllers/ExerciseController.php):
 
-       <?php
-
-       namespace App\Http\Controllers;
-
-       use Illuminate\Http\Request;
        use App\Models\Exercise;
        use League\Csv\Reader;
-       use Illuminate\Support\Facades\Storage;
 
-       class ExerciseController extends Controller
+    Depois crie o método importCsv:
+
+       public function importCsv()
        {
-           // Método para importar dados do CSV
-           public function importCsv()
-           {
-               // 1. Define o caminho do arquivo no storage
-               $filePath = storage_path('app/exercise.csv');
-
-               // 2. Cria o leitor CSV e define a primeira linha como cabeçalho
-               $csv = Reader::createFromPath($filePath, 'r');
-               $csv->setHeaderOffset(0);
-
-               // 3. Limpa a tabela antes da importação (evita duplicados)
-               Exercise::truncate();
-
-               // 4. Processa cada linha do CSV
-               foreach ($csv as $record) {
-                   Exercise::create([
-                       'csv_id' => $record['id'], // 5. ID original do CSV
-                       'diet' => $record['diet'], // 6. Tipo de dieta
-                       'pulse' => $record['pulse'], // 7. Valor do pulso
-                       'time' => $record['time'], // 8. Duração do exercício
-                       'kind' => $record['kind'], // 9. Tipo de atividade
-                   ]);
-               }
-
-               // 10. Redireciona com mensagem de sucesso
-               return redirect('/exercise/stats')->with('success', 'Dados importados com sucesso!');
+           // Configura o leitor de CSV
+           $csv = Reader::createFromPath(storage_path('app/exercise.csv'), 'r');
+           $csv->setHeaderOffset(0); // Ignora o cabeçalho
+        
+           // Limpa a tabela antes de importar
+           Exercise::truncate();
+        
+           // Importa cada linha
+           foreach ($csv as $linha) {
+               $exercicio = new Exercise();
+               $exercicio->diet = $linha['diet'];
+               $exercicio->pulse = $linha['pulse'];
+               $exercicio->time = $linha['time'];
+               $exercicio->kind = $linha['kind'];
+               $exercicio->save();
            }
-
-
-           // Método para calcular e exibir estatísticas
-           public function stats()
-           {
-               // 1. Busca todos os registros de cada tipo de exercício
-               $restStats = Exercise::where('kind', 'rest')->get(); // 2. Apenas repouso
-               $walkingStats = Exercise::where('kind', 'walking')->get(); // 3. Apenas caminhada
-               $runningStats = Exercise::where('kind', 'running')->get(); // 4. Apenas corrida
-
-               // 5. Organiza os dados calculados em um array
-               $data = [
-                   'rest' => [
-                       'count' => $restStats->count(), // 6. Total de registros de repouso
-                       'avg_pulse' => $restStats->avg('pulse') // 7. Média de pulso para repouso
-                   ],
-                   'walking' => [
-                       'count' => $walkingStats->count(), // 8. Total de registros de caminhada
-                       'avg_pulse' => $walkingStats->avg('pulse') // 9. Média de pulso para caminhada
-                   ],
-                   'running' => [
-                       'count' => $runningStats->count(), // 10. Total de registros de corrida
-                       'avg_pulse' => $runningStats->avg('pulse') // 11. Média de pulso para corrida
-                   ]
-               ];
-
-               // 12. Passa os dados para a view
-               return view('exercises.stats', compact('data'));
-           }
+        
+           return redirect('/exercises/stats');
        }
 
-   **Pontos-chave do método importCsv():**
-
-    ``->get()`` - Executa a query e retorna uma Collection (lista de resultados)
-
-    ``->count()`` - Método da Collection que conta quantos itens existem
-
-    ``->avg('coluna')`` - Calcula a média dos valores na coluna especificada
-
-    ``compact('data')`` - Equivalente a ['data' => $data]
-
-    **Pontos-chave do método stats:**
-
-     ``->get()`` - Executa a query e retorna uma Collection (lista de resultados filtrados)
-
-     ``->count()`` - Método da Collection que conta quantos registros existem
-
-     ``->avg('pulse')`` - Calcula a média dos valores na coluna 'pulse' para cada grupo
-
-     ``view()`` - Retorna a view especificada com os dados processados
-
-    ``compact('data')`` - Passa a variável $data para a view de forma simplificada
+     Agora crie o método stats: 
+     
+        public function stats()
+        {
+            // Calculo das estatísticas 
+            $estatistica = [
+                'rest' => [
+                    'quantidade' => Exercise::where('kind', 'rest')->count(),
+                    'media_pulse' => Exercise::where('kind', 'rest')->avg('pulse')
+                ],
+                'walking' => [
+                    'quantidade' => Exercise::where('kind', 'walking')->count(),
+                    'media_pulse' => Exercise::where('kind', 'walking')->avg('pulse')
+                ],
+                'running' => [
+                    'quantidade' => Exercise::where('kind', 'running')->count(),
+                    'media_pulse' => Exercise::where('kind', 'running')->avg('pulse')
+                ]
+            ];
+            
+            return view('exercises.stats', ['dados' => $estatistica]);
+        } 
+   
 
 7. Configurar as Rotas
 
-Edite routes/web.php:
-
-      use Illuminate\Support\Facades\Route;
-      use App\Http\Controllers\ExerciseController;
-
-      // 1. Rota para importação do CSV
-      Route::get('/exercise/import', [ExerciseController::class, 'importCsv']);
-
-      // 2. Rota para exibir estatísticas
-      Route::get('/exercise/stats', [ExerciseController::class, 'stats']);
-
+    Edite as rotas em (routes/web.php):
+    
+        use App\Http\Controllers\ExerciseController;
+    
+        Route::get('/exercises/importcsv', [ExerciseController::class, 'importCsv']);
+        Route::get('/exercises/stats', [ExerciseController::class, 'stats']);
 
 6. Criar a View de Estatísticas
 
@@ -336,87 +274,45 @@ Edite routes/web.php:
 
     Crie o arquivo resources/views/exercises/stats.blade.php:
 
-       <!DOCTYPE html>
-       <html lang="pt-br">
-       <head>
-           <meta charset="UTF-8">
-           <meta name="viewport" content="width=device-width, initial-scale=1.0">
-           <title>Estatísticas de Exercícios</title>
-           <style>
-               /* 1. Estilo básico para a tabela */
-               table {
-                   border-collapse: collapse; /* 2. Faz as bordas se fundirem */
-                   width: 100%; /* 3. Largura total */
-               }
-               /* 4. Estilo para células e cabeçalhos */
-               th, td {
-                   border: 1px solid #000; /* 5. Bordas pretas de 1px */
-                   padding: 8px; /* 6. Espaçamento interno */
-                   text-align: center; /* 7. Alinhamento centralizado */
-               }
-               /* 8. Estilo adicional para cabeçalhos */
-               th {
-                   font-weight: bold; /* 9. Texto em negrito */
-               }
-           </style>
-       </head>
-       <body>
-           <h1>Estatísticas de Exercícios</h1>
+       touch resources/views/exercises/stats.blade.php
 
-           <!-- 1. Exibe mensagem de sucesso se existir -->
-           @if(session('success'))
-               <div style="color: green; margin-bottom: 20px;">
-                   {{ session('success') }}
-               </div>
-           @endif
+   Edite a view stats,blade.php:
 
-           <!-- 2. Tabela de estatísticas -->
-           <table>
-               <!-- Cabeçalho da tabela -->
-               <thead>
-                   <tr>
-                       <th>exercise.csv</th> <!-- 3. Coluna de identificação -->
-                       <th>rest</th> <!-- 4. Dados de repouso -->
-                       <th>walking</th> <!-- 5. Dados de caminhada -->
-                       <th>running</th> <!-- 6. Dados de corrida -->
-                   </tr>
-               </thead>
-
-               <!-- Corpo da tabela -->
-               <tbody>
-                   <!-- 7. Primeira linha: Contagem de registros -->
-                   <tr>
-                       <td>Qtde linhas</td> <!-- 8. Label -->
-                       <td>{{ $data['rest']['count'] }}</td> <!-- 9. Total repouso -->
-                       <td>{{ $data['walking']['count'] }}</td> <!-- 10. Total caminhada -->
-                       <td>{{ $data['running']['count'] }}</td> <!-- 11. Total corrida -->
-                   </tr>
-
-                   <!-- 12. Segunda linha: Médias de pulso -->
-                   <tr>
-                       <td>Média Pulse</td> <!-- 13. Label -->
-                       <!-- 14. Médias arredondadas para 2 casas decimais -->
-                       <td>{{ round($data['rest']['avg_pulse'], 2) }}</td>
-                       <td>{{ round($data['walking']['avg_pulse'], 2) }}</td>
-                       <td>{{ round($data['running']['avg_pulse'], 2) }}</td>
-                   </tr>
-               </tbody>
-           </table>
-
-           <!-- 15. Link para nova importação -->
-           <div style="margin-top: 20px;">
-               <a href="/exercise/import">Importar Dados Novamente</a>
-           </div>
-       </body>
-       </html>
-
-**Quem calcula o quê:**
-
-| Cálculo | Onde é feito | O que faz|
-|---------|--------------|----------|
-| Contagem de linhas | Controller ``(->count())`` |	Conta quantos registros existem de cada tipo |
-| Média do pulse | Controller ``(->avg('pulse'))`` | Calcula a média dos valores na coluna 'pulse' |
-| Arredondamento	| View ``(round(..., 2))`` | Formata o número para 2 casas decimais |
+        <!DOCTYPE html>
+        <html>
+        <head>
+            <title>Estatísticas</title>
+            <style>
+                table { border-collapse: collapse; width: 80%; margin: 20px auto; }
+                th, td { border: 1px solid #ddd; padding: 8px; text-align: center; }
+                th { background-color: #f2f2f2; }
+            </style>
+        </head>
+        <body>
+            <h1 style="text-align: center;">Estatísticas</h1>
+            
+            <table>
+                <tr>
+                    <th>exercise.csv</th>
+                    <th>rest</th>
+                    <th>walking</th>
+                    <th>running</th>
+                </tr>
+                <tr>
+                    <td>Qtde linhas</td>
+                    <td>{{ $dados['rest']['quantidade'] }}</td>
+                    <td>{{ $dados['walking']['quantidade'] }}</td>
+                    <td>{{ $dados['running']['quantidade'] }}</td>
+                </tr>
+                <tr>
+                    <td>Média Pulse</td>
+                    <td>{{ round($dados['rest']['media_pulse'], 1) }}</td>
+                    <td>{{ round($dados['walking']['media_pulse'], 1) }}</td>
+                    <td>{{ round($dados['running']['media_pulse'], 1) }}</td>
+                </tr>
+            </table>
+        </body>
+        </html>
 
 8. Testar a Aplicação
 
