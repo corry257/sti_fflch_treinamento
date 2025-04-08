@@ -71,9 +71,6 @@ Criando o model chamado Estagiario:
 
     php artisan make:model Estagiario -m
 
-Acrescente ao model o seguinte método:
-
-    protected $fillable = ['nome', 'email', 'idade'];
 
 As migrations são uma forma de versionar e gerenciar o esquema do banco de dados, permitindo criar, alterar e remover tabelas de forma controlada e rastreável. Elas funcionam como um histórico de mudanças no banco de dados, ajudando a manter o controle de versões entre diferentes ambientes de desenvolvimento e produção.
 
@@ -106,7 +103,7 @@ No método create do EstagiarioController, insira os estagiários:
 
 **Dica**
 
-Toda vez que a rota estagiarios/create for acessada os cadastros serão realizados, pode-se deletar tudo antes das inserções com a função: App\Models\Estagiario::truncate()
+*Toda vez que a rota estagiarios/create for acessada os cadastros serão realizados, pode-se deletar tudo antes das inserções com a função: App\Models\Estagiario::truncate()*
 
 Faça a migração para o banco de dados.
 
