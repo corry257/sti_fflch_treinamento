@@ -408,7 +408,14 @@ Route::get('/livros/create', [LivroController::class, 'create']);
 Route::post('/livros', [LivroController::class, 'store']);
 ```
 
-Para mostrar o formulário html usamos o método create e store:
+Para mostrar o formulário html usamos o método create e store.
+
+Crie um controller chamado LivroController:
+
+```bash
+php artisan make:controller LivroController
+```
+acrescente os métodos create e store no controle:
 
 ```php
 use App\Models\Livro;
