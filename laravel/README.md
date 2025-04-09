@@ -1,3 +1,5 @@
+## Dia 1
+
 # Instalação
 
 Antes de instalar o Laravel no Debian, é necessário garantir que todas as dependências estejam instaladas. O Laravel depende do PHP e de algumas extensões, além de um banco de dados como MariaDB ou Sqlite. Aqui estão os principais pacotes que devem ser instalados no Debian:
@@ -326,4 +328,240 @@ Exemplo de saída:
     Para ver as estatísticas:
 
         http://localhost:8000/exercises/stats
+
+
+
+
+## Dia 2
+
+### CRUD
+
+CRUD é um acrônimo para as quatro operações básicas utilizadas na manipulação de dados em sistemas web: Create (Criar), Read (Ler), Update (Atualizar) e Delete (Excluir). Essas operações interagem com bancos de dados, permitindo, por exemplo, que usuários possam cadastrar novas informações, visualizar registros existentes, modificar dados já salvos e remover registros.
+
+Vamos criar um novo model Chamado Livro e a correspondente migration:
+
+```bash
+php artisan make:model Livro -m
+```
+
+Edite a migration (database/migrations/xxxx_create_livros_table.php):
+
+```php
+$table->string('titulo');
+$table->string('autor')->nullable();
+$table->string('isbn');
+```
+
+Execute a migration:
+
+```bash
+php artisan migrate
+```
+
+### Create
+
+São geralmente necessárias duas rotas para salvar um registro em uma operação CRUD porque o processo é dividido em duas etapas: exibir o formulário e processar os dados enviados. A rota GET serve para exibir o formulário de criação e a rota POST serve para processar os dados enviados pelo formulário no controller:
+
+```php
+use App\Http\Controllers\LivroController;
+
+// CREATE
+Route::get('/livros/create', [LivroController::class, 'create']);
+Route::post('/livros', [LivroController::class, 'store']);
+```
+
+Para mostrar o formulário html usamos o método create e store:
+
+```php
+use App\Models\Livro;
+
+
+class LivroController extends Controller
+{
+    // CREATE
+    public function create()
+    {
+        return view('livros.create');
+    }
+
+    public function store(Request $request)
+    {
+        $livro = new Livro();
+        $livro->titulo = $request->titulo;
+        $livro->autor = $request->autor;
+        $livro->isbn = $request->isbn;
+        $livro->save();
+
+        return redirect('/livros');
+    }
+}
+```
+
+Formulário html na view create:
+
+```html
+<form method="POST" action="/livros">
+    @csrf
+    Título: <input type="text" name="titulo">
+    Autor: <input type="text" name="autor">
+    ISBN: <input type="text" name="isbn">
+    <button type="submit">Enviar</button>
+</form>
+```
+
+### Read
+
+Vamos implementar duas formas de acesso aos registros de livros. O acesso ao registro de um livro específico e uma listagem de todos livros:
+
+```php
+// READ
+Route::get('/livros', [LivroController::class, 'index']);
+Route::get('/livros/{livro}', [LivroController::class, 'show']);
+```
+
+Respectivos controllers:
+
+```php
+// READ
+public function index()
+{
+    $livros =  Livro::all();
+    return view('livros.index',[
+        'livros' => $livros
+    ]);
+}
+
+public function show(Livro $livro)
+{
+    return view('livros.show',[
+        'livro' => $livro
+    ]);
+}
+```
+
+Html para view index:
+
+```html
+@forelse($livros as $livro)
+    <ul>
+        <li><a href="/livros/{{$livro->id}}">{{ $livro->titulo }}</a></li>
+        <li>{{ $livro->autor }}</li>
+        <li>{{ $livro->isbn }}</li>
+    </ul>
+@empty
+    Não há livros cadastrados
+@endforelse
+```
+
+Html para view show:
+
+```html
+<h1>{{ $livro->titulo }}</h1>
+<p>Autor: {{ $livro->autor }}</p>
+<p>ISBN: {{ $livro->isbn }}</p>
+<a href="/livros/{{ $livro->id }}/edit">Editar</a>
+<form action="/livros/{{ $livro->id }}" method="post">
+    @csrf
+    @method('DELETE')
+    <button type="submit" onclick="return confirm('Tem certeza?')">Apagar</button>
+</form>
+<a href="/livros">Voltar para lista</a>
+```
+
+### Update
+
+Novamente precisamos de duas rotas para atualizar um registro, uma para exibir o formulário e outra para processar os dados enviados:
+
+```php
+// UPDATE
+Route::get('/livros/{livro}/edit', [LivroController::class, 'edit']);
+Route::put('/livros/{livro}', [LivroController::class, 'update']);
+```
+
+Implementação no controller:
+
+```php
+// UPDATE
+public function edit(Livro $livro)
+{
+    return view('livros.edit', ['livro' => $livro]);
+}
+
+public function update(Request $request, Livro $livro)
+{
+    $livro->titulo = $request->titulo;
+    $livro->autor = $request->autor;
+    $livro->isbn = $request->isbn;
+    $livro->save();
+    return redirect("/livros/{$livro->id}");
+}
+```
+
+Html para edição:
+
+```html
+<form method="POST" action="/livros">
+    @csrf
+    Título: <input type="text" name="titulo" value="{{ $livro->titulo }}">
+    Autor: <input type="text" name="autor" value="{{ $livro->autor }}">
+    ISBN: <input type="text" name="isbn" value="{{ $livro->isbn }}">
+    <button type="submit">Enviar</button>
+</form>
+```
+
+### Delete
+
+Rota para delete:
+
+```php
+// DELETE
+Route::delete('/livros/{livro}', [LivroController::class,'destroy']);
+```
+
+Controller para delete:
+
+```php
+// DELETE
+public function destroy(Livro $livro)
+{
+    $livro->delete();
+    return redirect('/livros');
+}
+```
+
+Botão html para delete dentro da view index:
+
+```html
+<li>
+    <form action="/livros/{{ $livro->id }} " method="post">
+    @csrf
+    @method('delete')
+    <button type="submit" onclick="return confirm('Tem certeza?');">Apagar</button>
+    </form>
+</li>
+```
+
+No final o arquivo index deve estar semlhante ao seguinte:
+
+```html
+@forelse($livros as $livro)
+    <ul>
+        <li><a href="/livros/{{$livro->id}}">{{ $livro->titulo }}</a></li>
+        <li>{{ $livro->autor }}</li>
+        <li>{{ $livro->isbn }}</li>
+        <li>
+            <form action="/livros/{{ $livro->id }}" method="post">
+                @csrf
+                @method('DELETE')
+                <button type="submit" onclick="return confirm('Tem certeza?')">Apagar</button>
+            </form>
+        </li>
+    </ul>
+@empty
+    <p>Não há livros cadastrados</p>
+@endforelse
+<a href="/livros/create">Adicionar novo livro</a>
+```
+
+
 
