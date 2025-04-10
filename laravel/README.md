@@ -26,11 +26,18 @@ CREATE database treinamento;
 quit
 ```
 
-O comando a seguir cria um novo projeto Laravel na pasta treinamento, baixando a estrutura básica do framework e instalando todas as dependências necessárias via Composer, garantindo que o ambiente esteja pronto para o desenvolvimento:
+Crie uma pasta onde você irá fazer esse treinamento, pode chama-la de treinamento ou projetos:
 
 ```bash
-composer create-project laravel/laravel treinamento
+mkdir treinamento
 cd treinamento
+```
+
+O comando a seguir cria um novo projeto Laravel na pasta dia_01, baixando a estrutura básica do framework e instalando todas as dependências necessárias via Composer, garantindo que o ambiente esteja pronto para o desenvolvimento:
+
+```bash
+composer create-project laravel/laravel dia_01
+cd dia_01
 php artisan serve
 ```
 
@@ -313,7 +320,7 @@ Exemplo de saída:
 
        touch resources/views/exercises/stats.blade.php
 
-   Edite a view stats,blade.php:
+   Edite a view stats.blade.php:
 
         <!DOCTYPE html>
         <html>
@@ -635,11 +642,11 @@ No final o arquivo index deve estar semlhante ao seguinte:
 
 Objetivos:
 
-    Criar um CRUD completo para cadastro de livros: https://github.com/zygmuntz/goodbooks-10k/blob/master/samples/books.csv
-    Criar uma rotina de importação, conforme feito no exercício 1, para importação do csv: https://raw.githubusercontent.com/zygmuntz/goodbooks-10k/master/books.csv (esse é o completo!)
-
-    Criar rota, controller e view que vai mostrar:
-        uma tabela com a quantidade de livros por ano
-        uma tabela com a quantidade de livros por autor
-        uma tabela com a quantidade de livros por idioma
+1) Criar um CRUD completo para cadastro de livros: [https://github.com/zygmuntz/goodbooks-10k/blob/master/samples/books.csv](https://github.com/zygmuntz/goodbooks-10k/blob/master/samples/books.csv)    
+ - Criar uma rotina de importação, conforme feito no exercício 1, para importação do csv: [https://raw.githubusercontent.com/zygmuntz/goodbooks-10k/master/books.csv](https://raw.githubusercontent.com/zygmuntz/goodbooks-10k/master/books.csv) (esse é o completo!)  
+  
+2) Criar rota, controller e view que vai mostrar:  
+    - uma tabela com a quantidade de livros por ano  
+    - uma tabela com a quantidade de livros por autor  
+    - uma tabela com a quantidade de livros por idioma  
 
