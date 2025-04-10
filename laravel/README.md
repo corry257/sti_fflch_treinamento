@@ -441,7 +441,12 @@ class LivroController extends Controller
     }
 }
 ```
+Crie a view create:
 
+```bash
+mkdir resources/views/livros
+touch resources/views/livros/create.blade.php
+```
 Formulário html na view create:
 
 ```html
@@ -484,6 +489,12 @@ public function show(Livro $livro)
 }
 ```
 
+Crie a view index:
+
+```bash
+touch resources/views/livros/index.blade.php
+```
+
 Html para view index:
 
 ```html
@@ -496,6 +507,12 @@ Html para view index:
 @empty
     Não há livros cadastrados
 @endforelse
+```
+
+Crie a view show:
+
+```bash
+touch resources/views/livros/show.blade.php
 ```
 
 Html para view show:
@@ -540,6 +557,12 @@ public function update(Request $request, Livro $livro)
     $livro->save();
     return redirect("/livros/{$livro->id}");
 }
+```
+
+Crie a view edit:
+
+```bash
+touch resources/views/livros/edit.blade.php
 ```
 
 Html para edição:
@@ -608,5 +631,15 @@ No final o arquivo index deve estar semlhante ao seguinte:
 <a href="/livros/create">Adicionar novo livro</a>
 ```
 
+## Exercício 2 - Importação de Dados e Estatísticas com Laravel
 
+Objetivos:
+
+    Criar um CRUD completo para cadastro de livros: https://github.com/zygmuntz/goodbooks-10k/blob/master/samples/books.csv
+    Criar uma rotina de importação, conforme feito no exercício 1, para importação do csv: https://raw.githubusercontent.com/zygmuntz/goodbooks-10k/master/books.csv (esse é o completo!)
+
+    Criar rota, controller e view que vai mostrar:
+        uma tabela com a quantidade de livros por ano
+        uma tabela com a quantidade de livros por autor
+        uma tabela com a quantidade de livros por idioma
 
