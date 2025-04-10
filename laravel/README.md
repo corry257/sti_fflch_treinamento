@@ -120,6 +120,12 @@ $table->string('email');
 $table->integer('idade');
 ```
 
+Faça a migração para o banco de dados.
+
+```bash
+php artisan migrate
+```
+
 ## Desafio
 
 Crie uma rota chamada estagiarios/create apontando para o método create em EstagiarioController, que também deve ser criado.  
@@ -141,17 +147,12 @@ public function create(){
     $estagiario2->save();
     return redirect("/estagiarios");
 }
+```
 
 **Dica**  
   
 *Toda vez que a rota estagiarios/create for acessada os cadastros serão realizados, pode-se deletar tudo antes das inserções com a função: App\Models\Estagiario::truncate()*  
   
-Faça a migração para o banco de dados.
-
-```bash
-php artisan migrate
-```
-
 Por fim, na view da index podemos buscar os estagiários cadastrados e passar como uma variável para o template:
 
 ```php
@@ -565,6 +566,16 @@ public function update(Request $request, Livro $livro)
     return redirect("/livros/{$livro->id}");
 }
 ```
+
+**Dica**  
+  
+*Toda vez que a rota livros/edit for acessada os cadastros serão realizados, pode-se (explicar melhor como a inserções de 
+        
+        $request->validate([
+            'titulo' => 'required',
+            'isbn' => 'required|unique:livros,isbn,' . $livro->id,
+        ]); 
+no método update não vai mostrar na view index livros repetidos após a edição)*  
 
 Crie a view edit:
 
