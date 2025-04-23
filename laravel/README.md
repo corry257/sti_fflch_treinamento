@@ -661,3 +661,571 @@ Objetivos:
     - uma tabela com a quantidade de livros por autor  
     - uma tabela com a quantidade de livros por idioma  
 
+**Resolução Passo a passo**
+
+1. Preparação Inicial
+
+    Criar novo projeto Laravel:
+
+```bash
+composer create-project laravel/laravel exercise2
+cd exercise2
+```
+
+  Instalar a biblioteca League/CSV:
+
+```bash
+composer require league/csv
+```
+
+2. Criar Model e Migration
+
+    Criar model Livro com migration:
+
+```bash
+php artisan make:model Livro -m
+```
+
+   Editar migration (database/migrations/xxxx_create_livros_table.php):
+
+```php
+// Campos obrigatórios
+    $table->string('title');
+    $table->text('authors');
+    $table->string('isbn')->unique();
+
+    // Campos opcionais
+    $table->integer('book_id')->nullable();
+    $table->text('original_title')->nullable();
+    $table->float('original_publication_year')->nullable();
+    $table->string('language_code', 10)->nullable();
+    $table->string('editora')->nullable();
+    $table->float('average_rating')->nullable();
+    $table->integer('ratings_count')->default(0)->nullable();
+    $table->integer('work_ratings_count')->default(0)->nullable();
+    $table->integer('work_text_reviews_count')->default(0)->nullable();
+    $table->integer('ratings_1')->default(0)->nullable();
+    $table->integer('ratings_2')->default(0)->nullable();
+    $table->integer('ratings_3')->default(0)->nullable();
+    $table->integer('ratings_4')->default(0)->nullable();
+    $table->integer('ratings_5')->default(0)->nullable();
+    $table->text('image_url')->nullable();
+    $table->text('small_image_url')->nullable();
+    $table->unsignedBigInteger('goodreads_book_id')->nullable();
+    $table->unsignedBigInteger('best_book_id')->nullable();
+    $table->unsignedBigInteger('work_id')->nullable();
+    $table->integer('books_count')->nullable();
+```
+
+   Executar migration:
+
+```bash
+php artisan migrate
+```
+
+3. Criar Controller e Rotas
+
+    Criar controller:
+
+```bash
+php artisan make:controller LivroController
+```
+
+   Configurar rotas (routes/web.php):
+
+```php
+use App\Http\Controllers\LivroController;
+
+Route::get('/livros', [LivroController::class, 'index']);
+
+Route::get('/livros/stats', [LivroController::class, 'stats']);
+Route::get('/livros/stats/ano', [LivroController::class, 'statsAno']);
+Route::get('/livros/stats/autor', [LivroController::class, 'statsAutor']);
+Route::get('/livros/stats/idioma', [LivroController::class, 'statsIdioma']);
+
+Route::get('/livros/importcsv', [LivroController::class, 'importCsv']);
+
+Route::get('/livros/create', [LivroController::class, 'create']);
+Route::post('/livros', [LivroController::class, 'store']);
+Route::get('/livros/{livro}', [LivroController::class, 'show']);
+Route::get('/livros/{livro}/edit', [LivroController::class, 'edit']);
+Route::put('/livros/{livro}', [LivroController::class, 'update']);
+Route::delete('/livros/{livro}', [LivroController::class, 'destroy']);
+```
+
+4. Implementar CRUD no Controller e importação do arquivo csv
+
+Editar app/Http/Controllers/LivroController.php:
+
+```php
+<<?php
+
+namespace App\Http\Controllers;
+
+use App\Models\Livro;
+use Illuminate\Http\Request;
+use League\Csv\Reader;
+
+class LivroController extends Controller
+{
+    // Lista todos os livros
+    public function index()
+    {
+        $livros = Livro::all();
+        return view('livros.index', ['livros' => $livros]);
+    }
+
+    // Mostra formulário de criação
+    public function create()
+    {
+        return view('livros.create');
+    }
+
+    // Salva novo livro (POST)
+    public function store(Request $request)
+    {
+        $request->validate([
+            'title' => 'required',
+            'authors' => 'required',
+            'isbn' => 'required|unique:livros',
+        ]);
+
+        $livro = new Livro();
+        $livro->title = $request->title;
+        $livro->authors = $request->authors;
+        $livro->isbn = $request->isbn;
+        $livro->editora = $request->editora;
+        $livro->original_publication_year = $request->original_publication_year; // E esta
+        $livro->language_code = $request->language_code;
+        $livro->save();
+
+        return redirect('/livros');
+    }
+
+    // Mostra um livro específico
+    public function show(Livro $livro)
+    {
+        return view('livros.show', ['livro' => $livro]);
+    }
+
+    // Mostra formulário de edição
+    public function edit(Livro $livro)
+    {
+        return view('livros.edit', ['livro' => $livro]);
+    }
+
+    // Atualiza livro (PUT)
+    public function update(Request $request, Livro $livro)
+    {
+        $livro->title = $request->title;
+        $livro->authors = $request->authors;
+        $livro->isbn = $request->isbn;
+        $livro->editora = $request->editora;
+        $livro->original_publication_year = $request->original_publication_year;
+        $livro->language_code = $request->language_code;
+        $livro->image_url = $request->image_url;
+        $livro->save();
+        return redirect('/livros/' . $livro->id);
+    }
+
+    // Deleta livro
+    public function destroy(Livro $livro)
+    {
+        $livro->delete();
+        return redirect('/livros');
+    }
+
+    // Importa CSV
+    public function importCsv()
+    {
+        $csv = Reader::createFromPath(storage_path('app/books.csv'), 'r'); // lê arquivo csv
+        $csv->setHeaderOffset(0); // Ignora primeinha linha
+
+        $importados = 0;
+        $duplicados = 0;
+
+        foreach ($csv as $linha) {
+            // Verifica se o ISBN já existe
+            if (!Livro::where('isbn', $linha['isbn'])->exists()) {
+                $livro = new Livro();
+                $livro->title = $linha['title'] ?? '';
+                $livro->authors = $linha['authors'] ?? '';
+                $livro->isbn = $linha['isbn'] ?? '';
+                $livro->editora = $linha['publisher'] ?? $linha['editora'] ?? null;
+                $livro->original_publication_year = $linha['original_publication_year'] ?? null;
+                $livro->language_code = $linha['language_code'] ?? null;
+                $livro->save();
+                $importados++;
+            } else {
+                $duplicados++;
+            }
+        }
+
+        return redirect('/livros')->with([
+            'success' => "Importação concluída! $importados novos registros, $duplicados duplicados ignorados."
+        ]);
+    }
+
+    // Página central de estatísticas
+    public function stats()
+    {
+        return view('livros.stats', [
+            'totalLivros' => Livro::count() // Envia o total para a view
+        ]);
+    }
+
+    // Estatísticas por ano
+    public function statsAno()
+    {
+        $porAno = Livro::selectRaw('original_publication_year as ano, count(*) as total')
+            ->groupBy('original_publication_year')
+            ->orderBy('original_publication_year')
+            ->get();
+
+            return view('livros.stats_ano', [
+                'porAno' => $porAno,
+                'totalLivros' => Livro::count()
+            ]);
+        }
+
+    // Estatísticas por autor
+    public function statsAutor()
+    {
+        $porAutor = Livro::selectRaw('authors as autor, count(*) as total')
+            ->groupBy('authors')
+            ->orderBy('total', 'desc')
+            ->get();
+
+        return view('livros.stats_autor', [
+            'porAutor' => $porAutor,
+            'totalLivros' => Livro::count()
+        ]);
+    }
+
+    // Estatísticas por idioma
+    public function statsIdioma()
+    {
+        $porIdioma = Livro::selectRaw('language_code as idioma, count(*) as total')
+            ->groupBy('language_code')
+            ->orderBy('total', 'desc')
+            ->get();
+
+        return view('livros.stats_idioma', [
+            'porIdioma' => $porIdioma,
+            'totalLivros' => Livro::count()
+        ]);
+    }
+}
+```
+
+5. Criar Views
+
+   Estrutura de pastas:
+
+```bash
+mkdir -p resources/views/livros
+touch resources/views/livros/{index,create,edit,show,stats,stats_ano,stats_autor,stats_idioma}.blade.php
+```
+
+   resources/views/livros/index.blade.php:
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Lista de Livros</title>
+</head>
+<body>
+    <h1>Livros</h1>
+
+    <a href="/livros/create">Adicionar livro</a> |
+    <a href="/livros/stats">Estatísticas</a>
+
+    @forelse($livros as $livro)
+        <div style="margin: 20px 0;">
+            <h3><a href="/livros/{{$livro->id}}">{{ $livro->title }}</a></h3>
+            <p>Autor: {{ $livro->authors }}</p>
+            <p>ISBN: {{ $livro->isbn }}</p>
+
+            <a href="/livros/{{$livro->id}}/edit">Editar</a> |
+            <form action="/livros/{{$livro->id}}" method="post" style="display: inline;">
+                @csrf
+                @method('DELETE')
+                <button type="submit" onclick="return confirm('Tem certeza?')">Apagar</button>
+            </form>
+        </div>
+    @empty
+        <p>Não há livros cadastrados</p>
+    @endforelse
+</body>
+</html>
+```
+
+  resources/views/livros/create.blade.php (Formulário de Cadastro)
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Novo Livro</title>
+</head>
+<body>
+    <h1>Novo Livro</h1>
+
+    <a href="/livros">← Voltar</a>
+
+    <form method="POST" action="/livros" style="margin-top: 20px;">
+        @csrf
+
+        <div style="margin: 10px 0;">
+            <label>Título: <input type="text" name="title" required></label>
+        </div>
+
+        <div style="margin: 10px 0;">
+            <label>Autor: <input type="text" name="authors" required></label>
+        </div>
+
+        <div style="margin: 10px 0;">
+            <label>ISBN: <input type="text" name="isbn" required></label>
+        </div>
+
+        <div style="margin: 10px 0;">
+            <label>Editora: <input type="text" name="editora"></label>
+        </div>
+
+        <div style="margin: 10px 0;">
+            <label>Ano: <input type="number" name="original_publication_year"></label>
+        </div>
+
+        <div style="margin: 10px 0;">
+            <label>Idioma: <input type="text" name="language_code"></label>
+        </div>
+
+        <button type="submit">Salvar</button>
+    </form>
+</body>
+</html>
+```
+   resources/views/livros/edit.blade.php (Formulário de Edição)
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Editar {{ $livro->title }}</title>
+</head>
+<body>
+    <h1>Editar Livro</h1>
+
+    <a href="/livros/{{ $livro->id }}">← Voltar</a>
+
+    <form method="POST" action="/livros/{{ $livro->id }}" style="margin-top: 20px;">
+        @csrf
+        @method('PUT')
+
+        <div style="margin: 10px 0;">
+            <label>Título: <input type="text" name="title" value="{{ $livro->title }}" required></label>
+        </div>
+
+        <div style="margin: 10px 0;">
+            <label>Autor: <input type="text" name="authors" value="{{ $livro->authors }}" required></label>
+        </div>
+
+        <div style="margin: 10px 0;">
+            <label>ISBN: <input type="text" name="isbn" value="{{ $livro->isbn }}" required></label>
+        </div>
+
+        <div style="margin: 10px 0;">
+            <label>Editora: <input type="text" name="editora" value="{{ $livro->editora }}"></label>
+        </div>
+
+        <div style="margin: 10px 0;">
+            <label>Ano: <input type="number" name="original_publication_year" value="{{ $livro->original_publication_year }}"></label>
+        </div>
+
+        <div style="margin: 10px 0;">
+            <label>Idioma: <input type="text" name="language_code" value="{{ $livro->language_code }}"></label>
+        </div>
+
+        <button type="submit">Atualizar</button>
+    </form>
+</body>
+</html>
+```
+   resources/views/livros/show.blade.php (Detalhes do Livro)
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>{{ $livro->title }}</title>
+</head>
+<body>
+    <h1>{{ $livro->title }}</h1>
+
+    <p>Autor: {{ $livro->authors }}</p>
+    <p>ISBN: {{ $livro->isbn }}</p>
+    <p>Editora: {{ $livro->editora ?? '-' }}</p>
+    <p>Ano: {{ $livro->original_publication_year ?? '-' }}</p>
+    <p>Idioma: {{ $livro->language_code ?? '-' }}</p>
+
+    <a href="/livros/{{$livro->id}}/edit">Editar</a> |
+    <form action="/livros/{{$livro->id}}" method="post" style="display: inline;">
+        @csrf
+        @method('DELETE')
+        <button type="submit" onclick="return confirm('Tem certeza?')">Apagar</button>
+    </form> |
+    <a href="/livros">Voltar</a>
+</body>
+</html>
+```
+   resources/views/livros/stats.blade.php:
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Estatísticas</title>
+</head>
+<body>
+    <h1>Estatísticas</h1>
+
+    <a href="/livros">← Voltar</a>
+
+    <div style="margin: 20px 0;">
+        <h2><a href="/livros/stats/ano">Livros por Ano</a></h2>
+    </div>
+
+    <div style="margin: 20px 0;">
+        <h2><a href="/livros/stats/autor">Livros por Autor</a></h2>
+    </div>
+
+    <div style="margin: 20px 0;">
+        <h2><a href="/livros/stats/idioma">Livros por Idioma</a></h2>
+    </div>
+</body>
+</html>
+```
+
+   resources/views/livros/stats_ano.blade.php:
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Livros por Ano</title>
+    <style>
+        table, th, td { border: 1px solid black; border-collapse: collapse; }
+        th, td { padding: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Livros por Ano</h1>
+
+    <a href="/livros/stats">← Voltar</a>
+
+    <table style="margin-top: 20px;">
+        <tr>
+            <th>Ano</th>
+            <th>Quantidade</th>
+        </tr>
+        @foreach($porAno as $item)
+        <tr>
+            <td>{{ $item->ano ?? '-' }}</td>
+            <td>{{ $item->total }}</td>
+        </tr>
+        @endforeach
+    </table>
+</body>
+</html>
+```
+
+   resources/views/livros/stats_autor.blade.php:
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Livros por Autor</title>
+    <style>
+        table, th, td { border: 1px solid black; border-collapse: collapse; }
+        th, td { padding: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Livros por Autor</h1>
+
+    <a href="/livros/stats">← Voltar</a>
+
+    <table style="margin-top: 20px;">
+        <tr>
+            <th>Autor</th>
+            <th>Quantidade</th>
+        </tr>
+        @foreach($porAutor as $item)
+        <tr>
+            <td>{{ $item->autor ?? '-' }}</td>
+            <td>{{ $item->total }}</td>
+        </tr>
+        @endforeach
+    </table>
+</body>
+</html>
+```
+
+   resources/views/livros/stats_idioma.blade.php:
+
+```html
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Livros por Idioma</title>
+    <style>
+        table, th, td { border: 1px solid black; border-collapse: collapse; }
+        th, td { padding: 5px; }
+    </style>
+</head>
+<body>
+    <h1>Livros por Idioma</h1>
+
+    <a href="/livros/stats">← Voltar</a>
+
+    <table style="margin-top: 20px;">
+        <tr>
+            <th>Idioma</th>
+            <th>Quantidade</th>
+        </tr>
+        @foreach($porIdioma as $item)
+        <tr>
+            <td>{{ $item->idioma ?? '-' }}</td>
+            <td>{{ $item->total }}</td>
+        </tr>
+        @endforeach
+    </table>
+</body>
+</html>
+```
+
+6. Baixar e Preparar o Arquivo CSV
+
+    Acesse o link no navegador:
+
+   [https://raw.githubusercontent.com/zygmuntz/goodbooks-10k/master/books.csv](https://raw.githubusercontent.com/zygmuntz/goodbooks-10k/master/books.csv)
+
+    Salve como books.csv na pasta storage/app do projeto
+
+7. Testar a Aplicação
+
+    Iniciar servidor:
+
+```bash
+php artisan serve
+```
+
+  Acessar no navegador:
+
+   CRUD: http://localhost:8000/livros
+
+   Importar: http://localhost:8000/livros/importcsv
+
+   Estatísticas: http://localhost:8000/livros/stats
